@@ -93,11 +93,18 @@ function resolveStateId(name) {
   process.exit(1);
 }
 
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function readStdin() {
+  return readFileSync('/dev/stdin', 'utf8');
+}
+
 // ── Commands ────────────────────────────────────────────────────────────────
 
 async function issueCreate(args) {
   const title = args.title;
-  const body = args.body || '';
+  let body = args.body || '';
+  if (args['body-file']) body = readFileSync(args['body-file'], 'utf8');
   if (!title) { console.error('Error: --title is required'); process.exit(1); }
 
   const input = {
@@ -197,9 +204,19 @@ async function issueShow(args) {
 
 async function commentAdd(args) {
   const identifier = args._positional[0];
-  const body = args._positional[1];
+  let body = args._positional[1];
+
+  // Support --body-file or piped stdin (body arg is "-" or missing)
+  if (args['body-file']) {
+    body = readFileSync(args['body-file'], 'utf8');
+  } else if (!body || body === '-') {
+    try { body = readStdin(); } catch { body = null; }
+  }
+
   if (!identifier || !body) {
     console.error('Usage: linear comment add <identifier> "comment body"');
+    console.error('       linear comment add <identifier> --body-file /path/to/file');
+    console.error('       echo "body" | linear comment add <identifier> -');
     process.exit(1);
   }
 
